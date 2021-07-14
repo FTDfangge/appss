@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.vetrack.vetrack.DatasetActivity">
+
+
+    <RelativeLayout
+        android:id="@+id/relativeLayout"
+        android:layout_width="461dp"
+        android:layout_height="307dp"
+        android:layout_marginEnd="100dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/imaV_map"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:srcCompat="@drawable/map1" />
+
+        <EditText
+            android:id="@+id/et_parking"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/imaV_map"
+            android:hint="parking"
+            tools:visibility="invisible" />
+
+        <EditText
+            android:id="@+id/et_pose"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/et_parking"
+            android:layout_toEndOf="@+id/imaV_map"
+            android:hint="pose"
+            tools:visibility="invisible" />
+
+        <!--<EditText-->
+        <!--android:id="@+id/et_aScale"-->
+        <!--android:layout_width="wrap_content"-->
+        <!--android:layout_height="wrap_content"-->
+        <!--android:layout_below="@+id/et_trace"-->
+        <!--android:layout_toEndOf="@+id/imaV_map"-->
+        <!--android:hint="acc_scale" />-->
+
+        <EditText
+            android:id="@+id/et_trace"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/et_pose"
+            android:layout_toEndOf="@+id/imaV_map"
+            android:hint="trace"
+            tools:visibility="invisible" />
+
+        <Button
+            android:id="@+id/btn_start"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/imaV_map"
+            android:layout_toEndOf="@+id/imaV_map"
+            android:text="START"
+            tools:visibility="invisible" />
+
+
+    </RelativeLayout>
+
+    <Switch
+        android:id="@+id/privacySwitchBtn"
+        android:layout_width="118dp"
+        android:layout_height="162dp"
+        android:layout_marginBottom="4dp"
+        android:rotation="-90"
+        android:text="公开模式"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/pdBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="10dp"
+        android:rotation="-90"
+        android:text="在此停车"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/imageView4"
+        android:layout_width="30dp"
+        android:layout_height="37dp"
+        android:layout_marginStart="125dp"
+        android:layout_marginBottom="105dp"
+        android:rotation="90"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="@+id/relativeLayout"
+        app:layout_constraintStart_toStartOf="@+id/relativeLayout"
+        app:srcCompat="@drawable/car" />
+
+
+</android.support.constraint.ConstraintLayout>

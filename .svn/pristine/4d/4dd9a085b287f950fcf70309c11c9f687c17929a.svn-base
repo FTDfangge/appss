@@ -1,0 +1,45 @@
+package com.vetrack.vetrack;
+
+import org.junit.Test;
+
+import java.util.ArrayList;
+
+/**
+ * Example local unit test, which will execute on the development machine (host).
+ *
+ * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
+ */
+public class ExampleUnitTest {
+    @Test
+    public void addition_isCorrect() throws Exception {
+        //assertEquals(4, 2+2);
+        test();
+    }
+
+    public void test() {
+        ArrayList<A> test = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            test.add(new A(i));
+        }
+        test.set(5, new A(100));
+        for (A a : test)
+            System.out.print(a.getA());
+    }
+
+    class A {
+        int a;
+
+        A(int a) {
+            this.a = a;
+        }
+
+        public void setA(int a) {
+            this.a = a;
+        }
+
+        public int getA() {
+            return a;
+        }
+    }
+}
+

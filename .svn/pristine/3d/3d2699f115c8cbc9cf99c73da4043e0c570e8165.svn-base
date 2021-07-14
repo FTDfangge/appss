@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.vetrack.vetrack.RealtimeActivity">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <ImageView
+            android:id="@+id/imaV_map_r"
+            android:layout_width="1200px"
+            android:layout_height="800px"
+            app:srcCompat="@drawable/map1" />
+
+        <EditText
+            android:id="@+id/et_x"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/imaV_map_r"
+            android:hint="x" />
+
+        <EditText
+            android:id="@+id/et_y"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/et_x"
+            android:layout_toEndOf="@+id/imaV_map_r"
+            android:hint="y" />
+
+        <EditText
+            android:id="@+id/et_direction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/et_y"
+            android:layout_toEndOf="@+id/imaV_map_r"
+            android:hint="direction" />
+
+        <EditText
+            android:id="@+id/et_floor"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/et_direction"
+            android:layout_toEndOf="@+id/imaV_map_r"
+            android:hint="floor" />
+
+        <Button
+            android:id="@+id/btn_start"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/imaV_map_r"
+            android:layout_toEndOf="@+id/imaV_map_r"
+            android:text="START" />
+
+
+    </RelativeLayout>
+
+</android.support.constraint.ConstraintLayout>

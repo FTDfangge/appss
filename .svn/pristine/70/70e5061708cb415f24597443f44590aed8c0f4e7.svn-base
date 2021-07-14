@@ -1,0 +1,483 @@
+package com.vetrack.vetrack;
+
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.pm.ActivityInfo;
+import android.graphics.Bitmap;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
+import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.Toast;
+
+import com.vetrack.vetrack.Function.Detector;
+import com.vetrack.vetrack.Function.DrawPoint;
+import com.vetrack.vetrack.Function.ParticleFilter;
+import com.vetrack.vetrack.Model.CarData;
+import com.vetrack.vetrack.Model.LandMarks;
+import com.vetrack.vetrack.Model.MapInfo;
+import com.vetrack.vetrack.Model.Particles;
+import com.vetrack.vetrack.Model.TraceInfo;
+import com.vetrack.vetrack.Utils.DataType.MyFloatList;
+import com.vetrack.vetrack.Utils.Setting;
+import com.vetrack.vetrack.Utils.Utils;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+
+/**
+ * Real Time and Roll Back Mode
+ * In this mode, the system will try to roll back in every 200ms, of course, only roll back while landmarks are detected
+ */
+@SuppressLint("SetTextI18n")
+public class RealtimeActivity extends AppCompatActivity {
+
+    private static final String TAG = "RealtimeActivity";
+    private static final int STRAT_TRACK = 0x00010001;
+    private static final int DRAW_POINT = 0x00010002;
+    private String path = Environment.getExternalStorageDirectory().getPath() + "/vetrack";
+
+    private ImageView imageView;
+    private EditText et_x;
+    private EditText et_y;
+    private EditText et_direction;
+    private EditText et_floor;
+    private Button btn_start;
+    private DrawPoint drawPoint;
+    private Bitmap resultBm;
+
+    private boolean run;
+
+    private boolean changed;
+    private ArrayList<Particles> particleList;
+    private ParticleFilter pf;
+    private int countData;
+    private Particles particles;
+    private MapInfo mapInfo;
+    private CarData carData;
+    private ArrayList<LandMarks> landMarksList;
+    private final int n_ps = Setting.n_ps;
+    //private double acc_scale;
+    private double hd_vehicle;
+
+    private SensorManager mSensorManager;
+    private Sensor mAccelerometer;
+    private Sensor mMagnetic;
+    private Sensor mGyroscope;
+    private Sensor mGravity;
+    private Sensor mLinear_accelerometer;
+    private SensorListener mSensorListener;
+    private static int COLLECT_INTERVAL = 20;//采样间隔
+    private long timestamp;
+    private static final float NS2S = 1.0f / 1000000000.0f;
+    private float[] angle = new float[3];
+    private float[] acc = new float[3];
+    private float[] mag = new float[3];
+    private float[] gyr = new float[3];
+    private float[] gra = new float[3];
+    private float[] l_acc = new float[3];
+    private float ori;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_realtime);
+
+        setWindow();
+        initialMap();
+
+        imageView = findViewById(R.id.imaV_map_r);
+        et_x = findViewById(R.id.et_x);
+        et_y = findViewById(R.id.et_y);
+        et_direction = findViewById(R.id.et_direction);
+        et_floor = findViewById(R.id.et_floor);
+        btn_start = findViewById(R.id.btn_start);
+
+        // 初始化传感器
+        mSensorListener = new SensorListener();
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        if (mSensorManager != null) {
+            mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            mMagnetic = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+            mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+            mGravity = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
+            mLinear_accelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        }
+
+        run = false;
+        changed = false;
+        btn_start.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                TraceInfo traceInfo = new TraceInfo();
+                if (!run) {
+                    try {
+                        run = true;
+                        countData = 0;
+                        traceInfo.setInit_x(Integer.parseInt(et_x.getText().toString()));
+                        traceInfo.setInit_y(Integer.parseInt(et_y.getText().toString()));
+                        traceInfo.setInit_theta(Integer.parseInt(et_direction.getText().toString()));
+                        traceInfo.setInit_sn(Integer.parseInt(et_floor.getText().toString()));
+                    } catch (Exception e) {
+                        //Toast.makeText(RealtimeActivity.this, "Input Error!", Toast.LENGTH_SHORT).show();
+                        traceInfo.setInit_x(70);
+                        traceInfo.setInit_y(48);
+                        traceInfo.setInit_theta(0);
+                        traceInfo.setInit_sn(1);
+                    }
+
+                    carData = new CarData(true);
+                    particles = new Particles(n_ps, traceInfo);
+                    hd_vehicle = traceInfo.getInit_theta() * Math.PI / 180;
+                    particleList = new ArrayList<>();
+                    particleList.add(particles);
+                    landMarksList = new ArrayList<>();
+                    pf = new ParticleFilter(mapInfo, hd_vehicle);
+
+                    myHandler.sendEmptyMessage(STRAT_TRACK);
+                } else {
+                    run = false;
+                    btn_start.setText("Start");
+                }
+            }
+        });
+    }
+
+    @SuppressLint("HandlerLeak")
+    Handler myHandler = new Handler() {
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case STRAT_TRACK:
+                    btn_start.setText("Stop");
+                    Toast.makeText(RealtimeActivity.this,
+                            "Start Tracking!",
+                            Toast.LENGTH_SHORT).show();
+
+                    LandMarks temp = new LandMarks();
+                    for (int i = 0; i < 5000; i++) {
+                        landMarksList.add(temp);
+                    }
+
+                    //Front End
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            double[][] robots;
+                            drawPoint = new DrawPoint(RealtimeActivity.this, n_ps);
+//                            LandMarks temp = new LandMarks();
+//                            String tracePath = path + "/trace";//test
+//                            Matrix dataAll = Utils.readMatrix(tracePath + "/414.csv");//test
+//                            int dataPtr = 0;//test
+                            while (run) {//test&& dataPtr < dataAll.getRowDimension()
+                                try {
+                                    Thread.sleep(COLLECT_INTERVAL);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                                double[] data = {System.currentTimeMillis(), l_acc[0], l_acc[1], l_acc[2], ori, gra[0], gra[1], gra[2], gyr[0], gyr[1], gyr[2], mag[0], mag[1], mag[2]};
+
+//                                carData.addData(dataAll.getArray()[dataPtr++]);//test
+                                carData.addData(data);
+
+                                while (landMarksList.size() <= carData.getSize()) {
+                                    LandMarks temp = new LandMarks();
+                                    landMarksList.add(temp);
+                                }
+
+                                synchronized (RealtimeActivity.this) {
+                                    if (changed) {
+                                        particles = particleList.get(particleList.size() - 1);
+                                        changed = false;
+                                    }
+                                    particles = pf.CalToNow(particles, landMarksList.get(countData), carData.getCarData().get(carData.getSize() - 1));
+                                    particleList.add(particles);
+                                }
+                                if (countData % 20 == 0) {
+                                    robots = particles.getParticles();
+                                    resultBm = drawPoint.setPoints(robots[0], robots[1], robots[6]);
+                                    myHandler.sendEmptyMessage(DRAW_POINT);
+                                }
+                                countData++;
+                            }
+                            run = false;
+                        }
+                    }).start();
+
+                    //Back End
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            int bumpWidth = Setting.bump_width;
+                            int cornerWidth = Setting.corner_width;
+                            boolean isLandMark = false;
+                            int landMarkStart = 0;
+                            Detector detector = new Detector();
+                            CarData carDataTemp = new CarData(true);
+                            LandMarks temp = new LandMarks();
+                            while (run) {
+                                carDataTemp.setCarData(carData.getCarData());
+                                int ptr_now = countData;
+                                int len = carDataTemp.getSize();
+                                //if (countPF % Setting.realTimeDetectFreq == 0) {
+                                int[] detects = detector.detector_threshold_RealTime(carDataTemp.getCarData());
+                                System.out.println("detects[0] = " + detects[0] + ", detects[1] = " + detects[1]);
+                                if (detects[0] != 0) {
+                                    int ptr_bump = ptr_now > len ? ptr_now - len + detects[0] : detects[0];
+                                    System.out.println("ptr_bump = " + ptr_bump);
+                                    int half = bumpWidth / 2;
+                                    if (!landMarksList.get(ptr_bump).isBump()) {
+                                        while (landMarksList.size() <= ptr_bump + half)
+                                            landMarksList.add(temp);
+                                        for (int i = ptr_bump - half; i < ptr_bump + half; i++) {
+                                            LandMarks lm = new LandMarks();
+                                            lm.setCorner(landMarksList.get(i).isCorner());
+                                            lm.setBump(true);
+                                            lm.setTurn(landMarksList.get(i).getTurn());
+                                            landMarksList.set(i, lm);
+                                        }
+                                        isLandMark = true;
+                                        landMarkStart = ptr_bump - half;
+                                    }
+                                }
+                                if (detects[1] != 0) {
+                                    int ptr_corner = ptr_now > len ? ptr_now - len + detects[1] : detects[1];
+                                    System.out.println("ptr_corner = " + ptr_corner);
+                                    int half = cornerWidth / 2;
+                                    if (!landMarksList.get(ptr_corner).isCorner()) {
+                                        while (landMarksList.size() <= ptr_corner + half)
+                                            landMarksList.add(temp);
+                                        for (int i = ptr_corner - half; i < ptr_corner + half; i++) {
+                                            LandMarks lm = new LandMarks();
+                                            lm.setCorner(true);
+                                            lm.setBump(landMarksList.get(i).isBump());
+                                            lm.setTurn(landMarksList.get(i).getTurn());
+                                            landMarksList.set(i, lm);
+                                        }
+                                        isLandMark = true;
+                                        if (landMarkStart == 0)
+                                            landMarkStart = ptr_corner - half;
+                                        if (ptr_corner - half < landMarkStart) {
+                                            landMarkStart = ptr_corner - half;
+                                        }
+                                    }
+                                    int turnStart = ptr_now > len ? ptr_now - len + detector.getTurn_leftPtr() : detector.getTurn_leftPtr();
+                                    System.out.println("turnStart = " + turnStart);
+                                    if (landMarksList.get(ptr_corner).getTurn() == 0) {
+                                        int right = calculateRight(turnStart, ptr_corner);
+                                        System.out.println("right = " + right);
+                                        while (landMarksList.size() <= right)
+                                            landMarksList.add(temp);
+                                        for (int i = turnStart; i < right; i++) {
+                                            LandMarks lm = new LandMarks();
+                                            lm.setCorner(landMarksList.get(i).isCorner());
+                                            lm.setBump(landMarksList.get(i).isBump());
+                                            lm.setTurn(detector.getTurn_value());
+                                            landMarksList.set(i, lm);
+                                        }
+                                        landMarkStart = landMarkStart < turnStart ? landMarkStart : turnStart;
+                                    }
+                                }
+                                //}
+                                if (isLandMark) {
+                                    int landMarkLength = ptr_now - landMarkStart;
+                                    System.out.println("landMarkStart = " + landMarkStart + ", landMarkLength = " + landMarkLength);
+                                    particles = particleList.get(particleList.size() - landMarkLength);
+                                    pf.setCount(pf.getCount() - landMarkLength);
+                                    //int carDataPtr = len - landMarkLength;
+                                    synchronized (RealtimeActivity.this) {
+                                        int i;
+                                        for (i = landMarkStart; i < countData; i++) {
+                                            particles = pf.CalToNow(particles, landMarksList.get(i), carData.getCarData().get(carData.getSize() - (countData - i)));
+                                            if (particleList.size() > i)
+                                                particleList.set(i, particles);
+                                            else
+                                                particleList.add(particles);
+                                        }
+                                        while (particleList.size() > i) {
+                                            particleList.remove(particleList.size() - 1);
+                                        }
+                                        pf.setCount(i);
+                                        changed = true;
+                                    }
+                                    isLandMark = false;
+                                    landMarkStart = 0;
+                                }
+
+                                try {
+                                    Thread.sleep(200);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    }).start();
+                    break;
+                case DRAW_POINT:
+                    imageView.setImageBitmap(resultBm);
+                    break;
+            }
+        }
+    };
+
+//    private void clear() {
+//        particles = null;
+//        carData = null;
+//        landMarksList = null;
+//    }
+
+    private int calculateRight(int left, int mid) {
+        int width = mid - left;
+        if (width > 200)
+            width = 450;
+        else if (width > 150 && width < 200)
+            width = 350;
+        else if (width < 150 && width > 100)
+            width = 230;
+        else if (width < 100 && width > 50)
+            width = 150;
+        else if (width < 50)
+            width = 100;
+        return left + width;
+    }
+
+    private void initialMap() {
+        mapInfo = new MapInfo();
+        String mapPath = path + "/map";
+        String mapInfoObjPath = mapPath + "/MapInfo4.obj";
+        File file = new File(mapInfoObjPath);
+        if (file.exists()) {
+            try {
+                ObjectInputStream in = new ObjectInputStream(new FileInputStream(mapInfoObjPath));
+                mapInfo = (MapInfo) in.readObject();
+                in.close();
+                Log.i("init_map", "true");
+            } catch (IOException | ClassNotFoundException e) {
+                Log.i("init_map", "false");
+                e.printStackTrace();
+            }
+        } else {
+            mapInfo.setProj_x(new MyFloatList(Utils.readList_float(mapPath + "/proj_x4.csv")));
+            mapInfo.setProj_y(new MyFloatList(Utils.readList_float(mapPath + "/proj_y4.csv")));
+            mapInfo.setMap(new MyFloatList(Utils.readList_float(mapPath + "/map4.csv")));
+            mapInfo.setIswall_thick(new MyFloatList(Utils.readList_float(mapPath + "/iswall_thick4.csv")));
+            mapInfo.setDis_bump(new MyFloatList(Utils.readList_float(mapPath + "/dis_bump4.csv")));
+            mapInfo.setDis_corner(new MyFloatList(Utils.readList_float(mapPath + "/dis_corner4.csv")));
+            mapInfo.setDirec_map(new MyFloatList(Utils.readList_float(mapPath + "/direc_map4.csv")));
+            Log.i("init_map", "true");
+            try {
+                if (file.createNewFile()) {
+                    FileOutputStream outputStream = new FileOutputStream(mapInfoObjPath);//创建文件字节输出流对象
+                    ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
+                    objectOutputStream.writeObject(mapInfo);
+                    //最后记得关闭资源，objectOutputStream.close()内部已经将outputStream对象资源释放了，所以只需要关闭objectOutputStream即可
+                    objectOutputStream.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 注册传感器监听函数
+        mSensorManager.registerListener(mSensorListener, mAccelerometer, SensorManager.SENSOR_DELAY_UI);
+        mSensorManager.registerListener(mSensorListener, mMagnetic, SensorManager.SENSOR_DELAY_UI);
+        mSensorManager.registerListener(mSensorListener, mGyroscope, SensorManager.SENSOR_DELAY_UI);
+        mSensorManager.registerListener(mSensorListener, mGravity, SensorManager.SENSOR_DELAY_UI);
+        mSensorManager.registerListener(mSensorListener, mLinear_accelerometer, SensorManager.SENSOR_DELAY_UI);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // 注销监听函数
+        mSensorManager.unregisterListener(mSensorListener);
+    }
+
+    private class SensorListener implements SensorEventListener {
+
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            switch (event.sensor.getType()) {
+                case Sensor.TYPE_MAGNETIC_FIELD:
+                    mag[0] = event.values[0];
+                    mag[1] = event.values[1];
+                    mag[2] = event.values[2];
+                    break;
+                case Sensor.TYPE_GYROSCOPE:
+                    if (timestamp != 0) {
+                        final float dT = (event.timestamp - timestamp) * NS2S;
+
+                        angle[0] += event.values[0] * dT;
+                        angle[1] += event.values[1] * dT;
+                        angle[2] += event.values[2] * dT;
+
+                        gyr[0] = (float) Math.toDegrees(angle[0]);
+                        gyr[1] = (float) Math.toDegrees(angle[1]);
+                        gyr[2] = (float) Math.toDegrees(angle[2]);
+                    }
+                    timestamp = event.timestamp;
+                    break;
+                case Sensor.TYPE_GRAVITY:
+                    gra[0] = event.values[0];
+                    gra[1] = event.values[1];
+                    gra[2] = event.values[2];
+                    break;
+                case Sensor.TYPE_LINEAR_ACCELERATION:
+                    l_acc[0] = event.values[0];
+                    l_acc[1] = event.values[1];
+                    l_acc[2] = event.values[2];
+                    break;
+                case Sensor.TYPE_ACCELEROMETER:
+                    // 读取加速度传感器数值，values数组0,1,2分别对应x,y,z轴的加速度
+                    acc[0] = event.values[0];
+                    acc[1] = event.values[1];
+                    acc[2] = event.values[2];
+                    break;
+            }
+            ori = calculateOrientation();
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+            Log.i(TAG, "onAccuracyChanged");
+        }
+    }
+
+    private float calculateOrientation() {
+        float[] values = new float[3];
+        float[] R = new float[16];
+        SensorManager.getRotationMatrix(R, null, acc, mag);
+        SensorManager.getOrientation(R, values);
+        // 要经过一次数据格式的转换，转换为度
+        values[0] = (float) Math.toDegrees(values[0]);
+        if (values[0] < 0)
+            values[0] += 360;
+        return values[0];
+    }
+
+    private void setWindow() {
+        //保持屏幕常亮
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        //横屏
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+    }
+}

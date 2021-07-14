@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.vetrack.vetrack.DatasetActivity">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <ImageView
+            android:id="@+id/imaV_map"
+            android:layout_width="1200px"
+            android:layout_height="800px"
+            app:srcCompat="@drawable/map1" />
+
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/et_parking"
+            android:layout_toEndOf="@id/imaV_map"
+            android:hint="parking" />
+
+        <EditText
+            android:id="@+id/et_pose"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/et_parking"
+            android:layout_toEndOf="@+id/imaV_map"
+            android:hint="pose" />
+
+        <!--<EditText-->
+        <!--android:id="@+id/et_aScale"-->
+        <!--android:layout_width="wrap_content"-->
+        <!--android:layout_height="wrap_content"-->
+        <!--android:layout_below="@+id/et_trace"-->
+        <!--android:layout_toEndOf="@+id/imaV_map"-->
+        <!--android:hint="acc_scale" />-->
+
+        <EditText
+            android:id="@+id/et_trace"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/et_pose"
+            android:layout_toEndOf="@+id/imaV_map"
+            android:hint="trace" />
+
+        <Button
+            android:id="@+id/btn_start"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/imaV_map"
+            android:layout_toEndOf="@+id/imaV_map"
+            android:text="START" />
+
+
+    </RelativeLayout>
+
+</android.support.constraint.ConstraintLayout>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.vetrack.vetrack.MainActivity">
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:id="@+id/btn_sensorTest"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="传感器测试" />
+
+        <Button
+            android:id="@+id/btn_dataSet"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/btn_sensorTest"
+            android:text="数据集模式" />
+
+        <Button
+            android:id="@+id/btn_rt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/btn_dataSet"
+            android:text="实时模式" />
+
+        <Button
+            android:id="@+id/btn_rollback"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/btn_rt"
+            android:text="实时模式2.0" />
+
+        <Button
+            android:id="@+id/btn_dataCollect"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/btn_rollback"
+            android:text="数据收集" />
+
+    </RelativeLayout>
+
+</android.support.constraint.ConstraintLayout>
